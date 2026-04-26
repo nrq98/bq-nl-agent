@@ -4,6 +4,9 @@ BQ NL Agent - Convierte lenguaje natural a queries de BigQuery y genera gráfico
 
 import argparse
 import sys
+from dotenv import load_dotenv
+load_dotenv()
+
 from src.agent.orchestrator import Orchestrator
 
 

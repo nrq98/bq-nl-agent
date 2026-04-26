@@ -3,12 +3,15 @@ Módulo de conversión de lenguaje natural a SQL usando la API de Google Gemini.
 """
 
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import pandas as pd
 from src.utils.logger import get_logger
 from src.utils.schema_loader import load_schema
 
 logger = get_logger(__name__)
+
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-lite")
 
 SYSTEM_PROMPT = """Eres un experto en SQL. Tu tarea es convertir preguntas en lenguaje natural a queries SQL válidas.
 
@@ -37,17 +40,17 @@ Responde ÚNICAMENTE con una de estas opciones (sin explicación):
 
 class NLToSQL:
     def __init__(self):
-        genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+        self.client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
         self.schema = load_schema()
-        self._sql_model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
-            system_instruction=SYSTEM_PROMPT.format(schema=self.schema),
-        )
-        self._util_model = genai.GenerativeModel(model_name="gemini-2.0-flash")
+        self.system_instruction = SYSTEM_PROMPT.format(schema=self.schema)
 
     def generate(self, question: str) -> str:
         """Convierte una pregunta en lenguaje natural a SQL."""
-        response = self._sql_model.generate_content(question)
+        response = self.client.models.generate_content(
+            model=MODEL,
+            config=types.GenerateContentConfig(system_instruction=self.system_instruction),
+            contents=question,
+        )
         sql = response.text.strip()
         sql = sql.replace("```sql", "").replace("```", "").strip()
         return sql
@@ -55,13 +58,13 @@ class NLToSQL:
     def suggest_chart_title(self, question: str) -> str:
         """Genera un título descriptivo para el gráfico basado en la pregunta."""
         prompt = f'Genera un título corto (máximo 8 palabras) para un gráfico que responde a: "{question}". Solo el título, sin comillas.'
-        response = self._util_model.generate_content(prompt)
+        response = self.client.models.generate_content(model=MODEL, contents=prompt)
         return response.text.strip()
 
     def suggest_chart_type(self, question: str, df: pd.DataFrame) -> str:
         """Decide el tipo de gráfico más adecuado según la pregunta y los datos."""
         prompt = CHART_TYPE_PROMPT.format(question=question, columns=list(df.columns))
-        response = self._util_model.generate_content(prompt)
+        response = self.client.models.generate_content(model=MODEL, contents=prompt)
         chart_type = response.text.strip().lower()
         valid_types = {"bar", "line", "pie", "scatter", "hist"}
         return chart_type if chart_type in valid_types else "bar"
