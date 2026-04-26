@@ -1,0 +1,29 @@
+tables:
+  - name: datos_muestra_hackaton
+    columns:
+      - name: ID
+        type: INTEGER
+      - name: Input
+        type: STRING
+      - name: Notional_1_CRV_EUR
+        type: FLOAT
+      - name: Notional_2_CRV_EUR
+        type: FLOAT
+      - name: Workflow
+        type: STRING
+      - name: Match_status
+        type: STRING
+      - name: Labels
+        type: STRING
+      - name: snapshot_uid
+        type: STRING
+      - name: part
+        type: INTEGER
+      - name: snapshot_date
+        type: TIMESTAMP
+      - name: process_code
+        type: STRING
+      - name: run_id
+        type: INTEGER
+      - name: recon_date
+        type: TIMESTAMP
