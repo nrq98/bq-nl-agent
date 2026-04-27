@@ -21,10 +21,8 @@ Pregunta (NL)
 bq-nl-agent/
 ├── main.py                        # Punto de entrada (CLI con argparse)
 ├── schema.yaml                    # Esquema de tablas (cargado en el prompt)
-├── schema.example.yaml            # Referencia de esquema
 ├── requirements.txt               # Dependencias Python
 ├── .env                           # Variables de entorno (no subir a git)
-├── .env.example                   # Plantilla de variables
 ├── data/
 │   └── Datos_Muestra_Hackaton.csv # Datos de reconciliación (separador ;)
 └── src/
