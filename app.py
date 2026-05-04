@@ -62,7 +62,7 @@ plotter: Plotter = st.session_state.agents["plotter"]
 
 with st.sidebar:
     st.title("🤖 BQ NL Agent")
-    st.caption("Consulta datos en lenguaje natural")
+    st.caption("Consulta datos reconciliaciones")
     st.divider()
 
     st.subheader("⚙️ Opciones")
