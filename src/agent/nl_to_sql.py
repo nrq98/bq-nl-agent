@@ -21,9 +21,23 @@ Reglas estrictas:
 3. Usa el nombre de tabla exacto tal como aparece en el esquema.
 4. Si la pregunta es ambigua, elige la interpretación más razonable.
 5. Añade LIMIT 1000 si la query no tiene límite explícito.
+6. NUNCA apliques SUM, AVG, MIN ni MAX a columnas de tipo STRING. Para columnas STRING, usa COUNT(*) o COUNT(columna).
+   Cuando el usuario pida "total", "cuántos" o "recuento" sobre una columna categórica (STRING), usa COUNT(*) GROUP BY esa columna.
+   Solo usa SUM/AVG/MIN/MAX en columnas de tipo FLOAT o INTEGER.
+7. Antes de escribir la query, identifica el tipo de cada columna en el esquema. Si vas a agregar una columna, confirma que es numérica.
 
 Esquema de tablas disponibles:
 {schema}
+"""
+
+RETRY_PROMPT = """La query SQL que generaste produjo el siguiente error al ejecutarse:
+
+ERROR: {error}
+
+Query fallida:
+{sql}
+
+Genera una nueva query SQL corregida que evite este error. Responde ÚNICAMENTE con la query SQL corregida, sin explicaciones.
 """
 
 CHART_TYPE_PROMPT = """Eres un experto en visualización de datos. Elige el tipo de gráfico más adecuado.
@@ -62,6 +76,18 @@ class NLToSQL:
         sql = response.text.strip()
         sql = sql.replace("```sql", "").replace("```", "").strip()
         return sql
+
+    def fix(self, sql: str, error: str) -> str:
+        """Reintenta la generación de SQL dado el error de ejecución anterior."""
+        prompt = RETRY_PROMPT.format(error=error, sql=sql)
+        response = self.client.models.generate_content(
+            model=MODEL,
+            config=types.GenerateContentConfig(system_instruction=self.system_instruction),
+            contents=prompt,
+        )
+        fixed = response.text.strip()
+        fixed = fixed.replace("```sql", "").replace("```", "").strip()
+        return fixed
 
     def suggest_chart_title(self, question: str) -> str:
         """Genera un título descriptivo para el gráfico basado en la pregunta."""

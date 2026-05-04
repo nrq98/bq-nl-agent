@@ -8,18 +8,23 @@ Agente que convierte preguntas en lenguaje natural a queries SQL, las ejecuta so
 
 ```
 Pregunta (NL)
-    → NLToSQL.generate()       — Gemini genera la SQL
-    → SQLValidator.validate()  — bloquea todo lo que no sea SELECT/WITH
-    → BigQueryClient.run_query() — DuckDB ejecuta la SQL sobre el CSV
-    → NLToSQL.suggest_chart_*() — Gemini elige tipo y título del gráfico
-    → Plotter.plot()           — Matplotlib renderiza el gráfico
+    → NLToSQL.generate()         — Gemini genera la SQL
+    → SQLValidator.validate()    — bloquea todo lo que no sea SELECT/WITH
+    → Orchestrator._run_with_retry()
+        → BigQueryClient.run_query()   — DuckDB ejecuta la SQL sobre el CSV
+        → [si falla] NLToSQL.fix()     — Gemini corrige la SQL con el error
+        → [reintento] hasta MAX_RETRIES=2 veces
+    → NLToSQL.suggest_chart_*()  — Gemini elige tipo y título del gráfico
+    → Plotter.build_figure()     — Matplotlib construye la figura (devuelve Figure)
+    → Plotter.plot() / st.pyplot() — muestra o guarda el gráfico
 ```
 
 ## Estructura de ficheros
 
 ```
 bq-nl-agent/
-├── main.py                        # Punto de entrada (CLI con argparse)
+├── main.py                        # Punto de entrada CLI (argparse)
+├── app.py                         # Interfaz gráfica Streamlit (streamlit run app.py)
 ├── schema.yaml                    # Esquema de tablas (cargado en el prompt)
 ├── requirements.txt               # Dependencias Python
 ├── .env                           # Variables de entorno (no subir a git)
@@ -27,13 +32,13 @@ bq-nl-agent/
 │   └── Datos_Muestra_Hackaton.csv # Datos de reconciliación (separador ;)
 └── src/
     ├── agent/
-    │   ├── orchestrator.py        # Coordina el flujo completo
-    │   └── nl_to_sql.py           # Llama a Gemini para generar SQL y metadatos del gráfico
+    │   ├── orchestrator.py        # Coordina el flujo; incluye reintento automático con NLToSQL.fix()
+    │   └── nl_to_sql.py           # Gemini: generate() / fix() / suggest_chart_*()
     ├── bigquery/
     │   ├── client.py              # Carga el CSV con pandas y ejecuta SQL con DuckDB
     │   └── validator.py           # Valida que la SQL solo sea SELECT/WITH
     ├── visualization/
-    │   └── plotter.py             # Genera gráficos (bar, line, pie, scatter, hist)
+    │   └── plotter.py             # build_figure() → Figure | plot() → pantalla/fichero
     └── utils/
         ├── schema_loader.py       # Lee schema.yaml e inyecta su contenido en el prompt
         └── logger.py              # Logger con timestamp
@@ -73,14 +78,30 @@ Fichero: `data/Datos_Muestra_Hackaton.csv` (separador `;`)
 
 | Paquete | Uso |
 |---|---|
-| `google-genai` | Cliente Gemini (NL → SQL, tipo de gráfico, título) |
+| `google-genai` | Cliente Gemini (NL → SQL, corrección de SQL, tipo de gráfico, título) |
 | `duckdb` | Motor SQL sobre DataFrames de pandas |
 | `pandas` | Lectura del CSV y manipulación de datos |
 | `matplotlib` | Renderizado de gráficos |
+| `streamlit` | Interfaz gráfica web (`app.py`) |
 | `PyYAML` | Lectura de `schema.yaml` |
 | `python-dotenv` | Carga de `.env` al arrancar |
 
-## Uso por línea de comandos
+## Uso
+
+### Interfaz gráfica (Streamlit)
+
+```bash
+streamlit run app.py
+```
+
+Funcionalidades de `app.py`:
+- Textarea para preguntas en lenguaje natural
+- Estado en tiempo real (generando SQL → validando → ejecutando → gráfico)
+- Vista SQL generada + tabla de resultados + gráfico inline descargable
+- Toggle dry-run y toggle para mostrar/ocultar la tabla de datos
+- Historial de consultas en el sidebar (reutilizable)
+
+### Línea de comandos (`main.py`)
 
 ```bash
 # Una sola pregunta
@@ -102,3 +123,7 @@ python main.py "¿Cuál es el Notional medio?" --dry-run
 - El nombre de tabla en las queries SQL debe ser exactamente `datos_muestra_hackaton` (tal como aparece en `schema.yaml`).
 - El validador de SQL bloquea cualquier sentencia que no sea `SELECT` o `WITH`. No se puede modificar datos.
 - `schema.yaml` se inyecta en el system prompt de Gemini en cada arranque; si se modifica, basta con reiniciar el proceso.
+- El system prompt incluye la regla explícita de no aplicar `SUM`/`AVG`/`MIN`/`MAX` a columnas `STRING`. Para columnas categóricas, Gemini debe usar `COUNT(*)`.
+- Si DuckDB devuelve un error de tipos al ejecutar una query, el orquestador llama a `NLToSQL.fix()` con el mensaje de error y reintenta hasta `MAX_RETRIES=2` veces antes de propagar la excepción.
+- En Streamlit (`app.py`) los agentes se inicializan una sola vez en `st.session_state` para evitar re-crear el cliente Gemini en cada interacción.
+- `Plotter.build_figure()` devuelve el objeto `Figure` sin mostrarlo ni guardarlo, lo que permite a Streamlit renderizarlo con `st.pyplot()`. `Plotter.plot()` sigue funcionando igual para la CLI.

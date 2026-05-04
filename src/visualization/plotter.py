@@ -12,26 +12,13 @@ logger = get_logger(__name__)
 
 
 class Plotter:
-    def plot(
+    def build_figure(
         self,
         df: pd.DataFrame,
         title: str = "Resultado",
         chart_type: str = "bar",
-        output_path: str = None,
-    ):
-        """
-        Genera un gráfico a partir de un DataFrame.
-
-        Args:
-            df:          DataFrame con los datos.
-            title:       Título del gráfico.
-            chart_type:  Tipo de gráfico (bar, line, pie, scatter, hist).
-            output_path: Ruta para guardar la imagen. None = mostrar en pantalla.
-        """
-        if df.empty:
-            print("⚠️  No hay datos para graficar.")
-            return
-
+    ) -> plt.Figure:
+        """Construye y devuelve la figura sin mostrarla ni guardarla."""
         fig, ax = plt.subplots(figsize=(10, 6))
         fig.patch.set_facecolor("#f9f9f9")
         ax.set_facecolor("#ffffff")
@@ -57,9 +44,32 @@ class Plotter:
 
         ax.set_title(title, fontsize=14, fontweight="bold", pad=15)
         plt.tight_layout()
+        return fig
+
+    def plot(
+        self,
+        df: pd.DataFrame,
+        title: str = "Resultado",
+        chart_type: str = "bar",
+        output_path: str = None,
+    ):
+        """
+        Genera un gráfico a partir de un DataFrame.
+
+        Args:
+            df:          DataFrame con los datos.
+            title:       Título del gráfico.
+            chart_type:  Tipo de gráfico (bar, line, pie, scatter, hist).
+            output_path: Ruta para guardar la imagen. None = mostrar en pantalla.
+        """
+        if df.empty:
+            print("⚠️  No hay datos para graficar.")
+            return
+
+        fig = self.build_figure(df, title=title, chart_type=chart_type)
 
         if output_path:
-            plt.savefig(output_path, dpi=150, bbox_inches="tight")
+            fig.savefig(output_path, dpi=150, bbox_inches="tight")
             logger.info(f"Gráfico guardado en {output_path}")
         else:
             plt.show()

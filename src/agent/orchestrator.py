@@ -19,6 +19,8 @@ class Orchestrator:
         self.validator = SQLValidator()
         self.plotter = Plotter()
 
+    MAX_RETRIES = 2
+
     def run(self, question: str, output_path: str = None, dry_run: bool = False):
         """
         Flujo completo: pregunta → SQL → datos → gráfico.
@@ -42,9 +44,9 @@ class Orchestrator:
             print("⚠️  Modo dry-run: la query NO se ha ejecutado en BigQuery.")
             return
 
-        # 3. Ejecutar en BigQuery
+        # 3. Ejecutar en BigQuery (con reintentos si hay error de SQL)
         logger.info("Ejecutando query en BigQuery...")
-        df = self.bq_client.run_query(sql)
+        df = self._run_with_retry(sql)
         print(f"✅ Datos obtenidos: {len(df)} filas, {len(df.columns)} columnas\n")
 
         # 4. Generar gráfico
@@ -57,3 +59,18 @@ class Orchestrator:
             print(f"💾 Gráfico guardado en: {output_path}")
         else:
             print("📊 Gráfico mostrado en pantalla.")
+
+    def _run_with_retry(self, sql: str):
+        """Ejecuta la SQL; si falla, pide al LLM que la corrija y reintenta."""
+        for attempt in range(self.MAX_RETRIES + 1):
+            try:
+                return self.bq_client.run_query(sql)
+            except Exception as e:
+                if attempt == self.MAX_RETRIES:
+                    raise
+                error_msg = str(e)
+                logger.warning(f"Error en intento {attempt + 1}: {error_msg}. Reintentando con corrección...")
+                print(f"⚠️  Error SQL (intento {attempt + 1}): {error_msg}\n🔄 Corrigiendo query...\n")
+                sql = self.nl_to_sql.fix(sql, error_msg)
+                self.validator.validate(sql)
+                print(f"📄 SQL corregida:\n{sql}\n")
