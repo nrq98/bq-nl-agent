@@ -25,6 +25,7 @@ Reglas estrictas:
    Cuando el usuario pida "total", "cuántos" o "recuento" sobre una columna categórica (STRING), usa COUNT(*) GROUP BY esa columna.
    Solo usa SUM/AVG/MIN/MAX en columnas de tipo FLOAT o INTEGER.
 7. Antes de escribir la query, identifica el tipo de cada columna en el esquema. Si vas a agregar una columna, confirma que es numérica.
+8. Para el campo Labels, cuando se separan por comas ',' se consideran Labels diferentes. Por ejemplo, la Label  38-SIN IMPACTO-LIBOR-SOFR, SIN IMPACTO-JUSTIFICADA serían 2 Labels: SIN IMPACTO-JUSTIFICADA y 38-SIN IMPACTO-LIBOR-SOFR
 
 Esquema de tablas disponibles:
 {schema}
