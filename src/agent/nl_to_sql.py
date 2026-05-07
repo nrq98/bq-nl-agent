@@ -25,7 +25,16 @@ Reglas estrictas:
    Cuando el usuario pida "total", "cuántos" o "recuento" sobre una columna categórica (STRING), usa COUNT(*) GROUP BY esa columna.
    Solo usa SUM/AVG/MIN/MAX en columnas de tipo FLOAT o INTEGER.
 7. Antes de escribir la query, identifica el tipo de cada columna en el esquema. Si vas a agregar una columna, confirma que es numérica.
-8. El campo Labels almacena múltiples etiquetas en una sola celda, separadas por comas (','). Cada valor entre comas es una Label independiente. Ejemplo: el valor "38-SIN IMPACTO-LIBOR-SOFR, SIN IMPACTO-JUSTIFICADA" contiene exactamente dos Labels: "38-SIN IMPACTO-LIBOR-SOFR" y "SIN IMPACTO-JUSTIFICADA". Para filtrar por una Label concreta usa LIKE '%<label>%'. Para contar cuántas filas contienen una Label usa COUNT(*) con ese filtro LIKE. No uses split ni funciones de array; trata la columna como STRING y filtra con LIKE.
+8. El campo Labels almacena múltiples etiquetas en una sola celda, separadas por comas (','). Cada valor entre comas es una Label independiente. Ejemplo: el valor "38-SIN IMPACTO-LIBOR-SOFR, SIN IMPACTO-JUSTIFICADA" contiene exactamente dos Labels: "38-SIN IMPACTO-LIBOR-SOFR" y "SIN IMPACTO-JUSTIFICADA".
+   - Para filtrar por una Label concreta usa LIKE '%<label>%'.
+   - Para contar cuántas filas contienen una Label concreta usa COUNT(*) con ese filtro LIKE.
+   - Para listar y contar TODOS los tipos de label (cuando el usuario pregunta cuántos registros hay por tipo de label, distribución de labels, etc.), usa UNNEST(STRING_SPLIT(...)) para expandir cada fila en una por label, aplica TRIM() para eliminar espacios y excluye las entradas vacías. Ordena de mayor a menor. La primera columna del resultado debe ser el nombre de la label y la segunda el conteo.
+     Ejemplo para contar todos los tipos de label:
+     SELECT TRIM(label) AS Label, COUNT(*) AS Conteo
+     FROM datos_muestra_hackaton, UNNEST(STRING_SPLIT(Labels, ',')) AS t(label)
+     WHERE Labels IS NOT NULL AND Labels != '' AND TRIM(label) != ''
+     GROUP BY Label
+     ORDER BY Conteo DESC
 
 Esquema de tablas disponibles:
 {schema}
