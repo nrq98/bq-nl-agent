@@ -80,7 +80,8 @@ class Plotter:
 
     def _bar(self, df: pd.DataFrame, ax: plt.Axes):
         x_col = df.columns[0]
-        y_col = df.select_dtypes(include="number").columns[0] if len(df.select_dtypes(include="number").columns) > 0 else df.columns[1]
+        numeric_cols = [c for c in df.select_dtypes(include="number").columns if c != x_col]
+        y_col = numeric_cols[0] if numeric_cols else df.columns[1]
         ax.bar(df[x_col].astype(str), df[y_col], color="#4C72B0", edgecolor="white")
         ax.set_xlabel(x_col)
         ax.set_ylabel(y_col)
